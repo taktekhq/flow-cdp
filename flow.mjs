@@ -204,8 +204,15 @@ async function download(tab, tile, out, resolution, ext) {
   await tab.click(tile.x, tile.y);
   await sleep(5000);
   if (!(await tab.clickText('download', { tag: 'button' }))) die('no download button in the editor');
-  await sleep(1500);
-  if (!(await tab.clickText(resolution))) die(`no "${resolution}" in the download menu`);
+  // The menu can open slowly, and a fresh clip may not offer the upscaled size yet (13 Oct 2026: no "1080p" right
+  // after a clip finished). Wait for the size asked for, then fall back to 720p rather than lose a paid clip.
+  let picked = '';
+  for (let i = 0; i < 4 && !picked; i++) {
+    await sleep(1500 + i * 2000);
+    if (await tab.clickText(resolution)) picked = resolution;
+  }
+  if (!picked && resolution !== '720p' && (await tab.clickText('720p'))) { picked = '720p'; log(`no "${resolution}" in the download menu; saved 720p`); }
+  if (!picked) die(`no "${resolution}" in the download menu`);
   for (let i = 0; i < 90; i++) {
     await sleep(2000);
     const f = readdirSync(DOWNLOADS).filter((n) => n.endsWith(ext)).map((n) => join(DOWNLOADS, n))

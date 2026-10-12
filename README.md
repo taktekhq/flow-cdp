@@ -33,7 +33,7 @@ It prints the project URL, the agent's plan and the quoted credits (to stdout), 
 | `--last` | none | End frame (frames to video). |
 | `--model` | `Veo 3.1 - Fast` | Flow's label, or an API id such as `veo-3.1-generate-preview` (mapped to `Veo 3.1 - Quality`). |
 | `--aspect` | `9:16` | `9:16` or `16:9`. |
-| `--resolution` | `720p` | Download size: `720p`, `1080p`, `4K` (upscaled by Flow), `270p`. |
+| `--resolution` | `720p` | Download size: `720p`, `1080p`, `4K` (upscaled by Flow), `270p`. Falls back to `720p` when the menu does not offer it. |
 | `--max-credits` | `20` | Reject the agent's quote above this. |
 | `--project` | new project | A Flow project URL to reuse. |
 | `--account` | Chrome's first account | The Google account to use when the profile has several (e.g. `you@gmail.com`). |
