@@ -1,0 +1,10 @@
+{
+  "name": "flow-cdp",
+  "version": "0.1.0",
+  "description": "Drive Google Flow (Veo) in a signed-in Chrome over the DevTools protocol",
+  "type": "module",
+  "bin": { "flow-cdp": "flow.mjs" },
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "engines": { "node": ">=22" },
+  "license": "MIT"
+}
