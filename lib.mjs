@@ -54,7 +54,7 @@ const PRICE = { 'Veo 3.1 - Lite': [5], 'Veo 3.1 - Fast': [10, 15] };
 export function judgeQuote({ credits, plan, model, max, first }) {
   if (credits == null) return 'no quote';
   if (credits > max) return `quote ${credits} credits is over --max-credits ${max}`;
-  if (plan && first && !/first frame|frames? to video/i.test(plan)) return 'the agent did not say it will use the image as the first frame';
+  if (plan && first && !/first frame|frames? to video|start(ing)? frame|(animat\w+|bring\w*) (your|the attached) (image|illustration|picture|drawing)/i.test(plan)) return 'the agent did not say it will use the image as the first frame';
   // A plan that names a Veo model must name ours. A plan that names none ("I'm going to generate a video of the
   // capybara speaking, using your image as the first frame.", 14 Oct 2026) is judged by its price instead.
   if (/veo/i.test(plan)) {

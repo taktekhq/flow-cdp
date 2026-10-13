@@ -69,3 +69,9 @@ test('a plan that names no model is judged by price', () => {
   assert.match(judgeQuote({ credits: 5, plan, model: 'Veo 3.1 - Fast', max: 20, first: true }), /price/);
   assert.match(judgeQuote({ credits: 5, plan: "I'm going to generate one video with Veo 3.1 - Lite using your image as the first frame.", model: 'Veo 3.1 - Fast', max: 20, first: true }), /something other/);
 });
+
+test('"animating your illustration" counts as using the first frame', () => {
+  const plan = "I'm going to generate an 8-second video animating your illustration using Veo 3.1 - Fast.";
+  assert.equal(judgeQuote({ credits: 10, plan, model: 'Veo 3.1 - Fast', max: 20, first: true }), '');
+  assert.match(judgeQuote({ credits: 10, plan: "I'm going to generate an 8-second video using Veo 3.1 - Fast.", model: 'Veo 3.1 - Fast', max: 20, first: true }), /first frame/);
+});
