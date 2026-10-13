@@ -62,3 +62,10 @@ test('a 15-credit Fast quote with no plan is accepted (price seen 14 Oct 2026)',
   assert.equal(judgeQuote({ credits: 15, plan: '', model: 'Veo 3.1 - Fast', max: 20, first: true }), '');
   assert.match(judgeQuote({ credits: 20, plan: '', model: 'Veo 3.1 - Fast', max: 20, first: true }), /not Veo 3.1 - Fast's price/);
 });
+
+test('a plan that names no model is judged by price', () => {
+  const plan = "I'm going to generate a video of the capybara speaking, using your image as the first frame.";
+  assert.equal(judgeQuote({ credits: 10, plan, model: 'Veo 3.1 - Fast', max: 20, first: true }), '');
+  assert.match(judgeQuote({ credits: 5, plan, model: 'Veo 3.1 - Fast', max: 20, first: true }), /price/);
+  assert.match(judgeQuote({ credits: 5, plan: "I'm going to generate one video with Veo 3.1 - Lite using your image as the first frame.", model: 'Veo 3.1 - Fast', max: 20, first: true }), /something other/);
+});
