@@ -40,6 +40,18 @@ export function videoPrompt({ prompt, model, aspect, first, last }) {
   return [`Generate one video with ${model}, ${aspect}, 8 seconds.`, frames, prompt].filter(Boolean).join(' ');
 }
 
+// An Omni edit of an uploaded clip: name the change, and pin everything else so the edit does not re-animate it.
+export function editPrompt({ prompt }) {
+  return `Edit the attached video with Omni. ${prompt} Keep everything else exactly as it is: the same motion, timing, framing, characters, colours, sound and length.`;
+}
+
+// An edit has no fixed price yet; only the ceiling is checked.
+export function judgeEditQuote({ credits, max }) {
+  if (credits == null) return 'no quote';
+  if (credits > max) return `quote ${credits} credits is over --max-credits ${max}`;
+  return '';
+}
+
 export function imagePrompt({ prompt, model, aspect, refs }) {
   const r = refs ? `Use the ${refs} attached image${refs > 1 ? 's' : ''} as references for the characters and the scene.` : '';
   return [`Generate one image with ${model}, ${aspect}.`, r, prompt].filter(Boolean).join(' ');

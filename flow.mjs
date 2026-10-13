@@ -5,12 +5,14 @@
 //   node flow.mjs video --prompt "shot" --out clip.mp4 [--first start.png] [--last end.png]
 //                       [--model "Veo 3.1 - Fast"] [--aspect 9:16] [--max-credits 20] [--project URL]
 //                       [--account you@gmail.com] [--timeout 1500] [--resolution 720p]
+//   node flow.mjs edit --video clip.mp4 --prompt "what to change" --out edited.mp4 [--max-credits 60] [...]
+//                       (Omni video edit: everything not named in the prompt should stay as it is)
 //
 // Prints the Flow project URL, the agent's plan and the quoted credits, then the saved path.
 import { existsSync, readdirSync, renameSync, statSync, copyFileSync, unlinkSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { lastQuote, lastPlan, flowModel, videoPrompt, judgeQuote } from './lib.mjs';
+import { lastQuote, lastPlan, flowModel, videoPrompt, editPrompt, judgeQuote, judgeEditQuote } from './lib.mjs';
 
 const CDP_URL = process.env.CDP_URL || 'http://127.0.0.1:9222';
 const DOWNLOADS = process.env.FLOW_DOWNLOADS || join(homedir(), 'Downloads');
@@ -226,21 +228,25 @@ async function download(tab, tile, out, resolution, ext) {
 }
 
 async function video(o) {
-  if (!o.prompt || !o.out) die('video needs --prompt and --out');
-  for (const f of [o.first, o.last].filter(Boolean)) if (!existsSync(f)) die(`no such file: ${f}`);
+  const edit = o._[0] === 'edit';
+  if (!o.prompt || !o.out) die(`${o._[0]} needs --prompt and --out`);
+  if (edit && !o.video) die('edit needs --video');
+  for (const f of [o.first, o.last, o.video].filter(Boolean)) if (!existsSync(f)) die(`no such file: ${f}`);
   const model = flowModel(o.model || 'Veo 3.1 - Fast');
-  const max = Number(o['max-credits'] || 20);
+  const max = Number(o['max-credits'] || (edit ? 60 : 20));
   const tab = await openProject(o);
   try {
     await clearComposer(tab);
+    if (edit) await attach(tab, o.video);
     if (o.first) await attach(tab, o.first);
     if (o.last) await attach(tab, o.last);
     const seen = new Set((await tiles(tab, 'video')).map((t) => t.label));
     const before = (await tiles(tab, 'video')).length;
-    const { credits, plan } = await ask(tab, videoPrompt({ prompt: o.prompt, model, aspect: o.aspect || '9:16', first: o.first, last: o.last }));
+    const { credits, plan } = await ask(tab, edit ? editPrompt({ prompt: o.prompt })
+      : videoPrompt({ prompt: o.prompt, model, aspect: o.aspect || '9:16', first: o.first, last: o.last }));
     console.log(`plan ${plan}`);
     console.log(`credits ${credits}`);
-    const problem = judgeQuote({ credits, plan, model, max, first: !!o.first });
+    const problem = edit ? judgeEditQuote({ credits, max }) : judgeQuote({ credits, plan, model, max, first: !!o.first });
     if (problem) {
       if (!(await tab.clickText('Reject'))) log('could not click Reject; the quote is left unanswered');
       die(`rejected: ${problem}`, 3);
@@ -273,7 +279,7 @@ async function video(o) {
 
 const o = args(process.argv.slice(2));
 try {
-  if (o._[0] === 'video') await video(o);
+  if (o._[0] === 'video' || o._[0] === 'edit') await video(o);
   else die('usage: node flow.mjs video --prompt "..." --out clip.mp4 [--first img] [--last img] (see README.md)', 2);
 } catch (e) {
   console.error(`flow: ${e.message}`);
