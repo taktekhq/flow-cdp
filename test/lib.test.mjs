@@ -57,3 +57,8 @@ test('matches labels with an icon name in front', () => {
   assert.ok(!labelMatches('Always approve', 'Approve'));
   assert.ok(!labelMatches('check Always approve', 'Approve'));
 });
+
+test('a 15-credit Fast quote with no plan is accepted (price seen 14 Oct 2026)', () => {
+  assert.equal(judgeQuote({ credits: 15, plan: '', model: 'Veo 3.1 - Fast', max: 20, first: true }), '');
+  assert.match(judgeQuote({ credits: 20, plan: '', model: 'Veo 3.1 - Fast', max: 20, first: true }), /not Veo 3.1 - Fast's price/);
+});

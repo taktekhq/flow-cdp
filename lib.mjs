@@ -47,7 +47,8 @@ export function imagePrompt({ prompt, model, aspect, refs }) {
 
 // Credits Flow charged for one 8 s clip, seen 12 Oct 2026. When the agent quotes without a plan sentence, the
 // price is the only sign of which model it picked.
-const PRICE = { 'Veo 3.1 - Lite': 5, 'Veo 3.1 - Fast': 10 };
+// Known prices in credits. Fast went from 10 to 15 per 8 s clip with a first frame (seen 14 Oct 2026 on Ultra).
+const PRICE = { 'Veo 3.1 - Lite': [5], 'Veo 3.1 - Fast': [10, 15] };
 
 // Why a quote should be refused, or '' to approve.
 export function judgeQuote({ credits, plan, model, max, first }) {
@@ -56,8 +57,8 @@ export function judgeQuote({ credits, plan, model, max, first }) {
   if (plan) {
     if (!planUsesModel(plan, model)) return `the agent planned something other than ${model}: ${plan}`;
     if (first && !/first frame|frames? to video/i.test(plan)) return 'the agent did not say it will use the image as the first frame';
-  } else if (PRICE[model] && credits !== PRICE[model]) {
-    return `no plan given and ${credits} credits is not ${model}'s price (${PRICE[model]})`;
+  } else if (PRICE[model] && !PRICE[model].includes(credits)) {
+    return `no plan given and ${credits} credits is not ${model}'s price (${PRICE[model].join(' or ')})`;
   }
   return '';
 }
