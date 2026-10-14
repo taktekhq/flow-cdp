@@ -7,6 +7,9 @@
 //                       [--account you@gmail.com] [--timeout 1500] [--resolution 720p]
 //   node flow.mjs edit --video clip.mp4 --prompt "what to change" --out edited.mp4 [--max-credits 60] [...]
 //                       (Omni video edit: everything not named in the prompt should stay as it is)
+//   node flow.mjs omni --project URL --prompt "what to change" --out edited.mp4 [--version N] [--resolution 1080p]
+//                       Omni edit of a clip already in a Flow project (the project flow.mjs printed when it made it):
+//                       opens its video (as Flow shows it), or history thumbnail N from the left with --version N, edits, downloads.
 //
 // Prints the Flow project URL, the agent's plan and the quoted credits, then the saved path.
 import { existsSync, readdirSync, renameSync, statSync, copyFileSync, unlinkSync } from 'node:fs';
@@ -277,9 +280,74 @@ async function video(o) {
   }
 }
 
+// An Omni edit inside the project that made the clip (14 Oct 2026: Flow refused mp4 uploads, so a clip can only be
+// edited where it was generated). Flow's editor: the video's history strip at the top (version 1 = the original),
+// a "Describe how to edit this video" box, and "Start generation". There is no quote step.
+async function omni(o) {
+  if (!o.project || !o.prompt || !o.out) die('omni needs --project, --prompt and --out');
+  const account = o.account || process.env.FLOW_ACCOUNT;
+  const tab = await Tab.open(o.project + (account ? `?authuser=${encodeURIComponent(account)}` : ''));
+  try {
+    await clearPopups(tab);
+    const tile = (await tiles(tab, 'video'))[0];
+    if (!tile) die('no video in that project');
+    await tab.click(tile.x, tile.y);
+    await sleep(6000);
+    // History strip: buttons near the top centre with a thumbnail; pick version N (1-based, left to right).
+    const n = Number(o.version || 0);
+    const pick = await tab.ev(`(()=>{const b=[...document.querySelectorAll('button')].filter(b=>b.querySelector('img')&&b.getBoundingClientRect().y<120&&b.getBoundingClientRect().width<80)
+      .sort((a,c)=>a.getBoundingClientRect().x-c.getBoundingClientRect().x); const e=b[${n - 1}]; if(!e) return null; const r=e.getBoundingClientRect();
+      return [Math.round(r.x+r.width/2),Math.round(r.y+r.height/2), b.length]})()`);
+    if (n && pick && pick[2] > 1) { await tab.click(pick[0], pick[1]); await sleep(4000); log(`picked version ${n} of ${pick[2]}`); }
+    const box = await tab.ev(`(()=>{const el=[...document.querySelectorAll('[contenteditable=true]')].pop(); if(!el) return null; const r=el.getBoundingClientRect();
+      return [Math.round(r.x+20),Math.round(r.y+r.height/2)]})()`);
+    if (!box) die('no edit box: is this a video editor page?');
+    await tab.click(...box); await sleep(500);
+    // Insert as text, not key presses: typed keys reached the page's own shortcuts and opened another asset.
+    await tab.send('Input.insertText', { text: o.prompt });
+    await sleep(800);
+    const go = await tab.ev(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Start generation'&&!b.disabled);
+      if(!b) return null; const r=b.getBoundingClientRect(); return [Math.round(r.x+r.width/2),Math.round(r.y+r.height/2)]})()`);
+    if (!go) die('Start generation is disabled: the prompt did not land in the box');
+    await tab.click(...go);
+    log('omni edit started');
+    // Done = the progress percentage appeared on the preview and then went away.
+    const deadline = Date.now() + Number(o.timeout || 900) * 1000;
+    let seenProgress = false;
+    for (;;) {
+      await sleep(5000);
+      const t = await tab.text();
+      if (/Something went wrong|couldn.t generate|failed to generate/i.test(t)) die(`Flow failed the edit: ${t.slice(-300).replace(/\s+/g, ' ')}`, 4);
+      const busy = /(^|\s)\d{1,3}%(\s|$)/.test(t);
+      if (busy) seenProgress = true;
+      else if (seenProgress) break;
+      if (Date.now() > deadline) die('timed out waiting for the edit', 5);
+    }
+    await sleep(3000);
+    const start = Date.now();
+    if (!(await tab.clickText('download', { tag: 'button' }))) die('no download button');
+    let picked = '';
+    for (let i = 0; i < 4 && !picked; i++) { await sleep(1500 + i * 2000); if (await tab.clickText(o.resolution || '1080p')) picked = o.resolution || '1080p'; }
+    if (!picked && (await tab.clickText('720p'))) picked = '720p';
+    if (!picked) die('no download size offered');
+    for (let i = 0; i < 90; i++) {
+      await sleep(2000);
+      const f = readdirSync(DOWNLOADS).filter((x) => x.endsWith('.mp4')).map((x) => join(DOWNLOADS, x)).find((p) => statSync(p).mtimeMs >= start - 1000);
+      if (f && statSync(f).size > 10000) {
+        try { renameSync(f, resolve(o.out)); } catch { copyFileSync(f, resolve(o.out)); unlinkSync(f); }
+        console.log(`saved ${resolve(o.out)}`); return;
+      }
+    }
+    die(`nothing arrived in ${DOWNLOADS}`);
+  } finally {
+    await tab.close();
+  }
+}
+
 const o = args(process.argv.slice(2));
 try {
   if (o._[0] === 'video' || o._[0] === 'edit') await video(o);
+  else if (o._[0] === 'omni') await omni(o);
   else die('usage: node flow.mjs video --prompt "..." --out clip.mp4 [--first img] [--last img] (see README.md)', 2);
 } catch (e) {
   console.error(`flow: ${e.message}`);
