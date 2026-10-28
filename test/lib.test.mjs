@@ -76,6 +76,12 @@ test('"animating your illustration" counts as using the first frame', () => {
   assert.match(judgeQuote({ credits: 10, plan: "I'm going to generate an 8-second video using Veo 3.1 - Fast.", model: 'Veo 3.1 - Fast', max: 20, first: true }), /first frame/);
 });
 
+test('"animating your crochet bouquet image" counts as using the first frame', () => {
+  const plan = "I'm going to generate an 8-second 16:9 video animating your crochet bouquet image using Veo 3.1 - Fast with a slow cinematic push-in.";
+  assert.equal(judgeQuote({ credits: 10, plan, model: 'Veo 3.1 - Fast', max: 20, first: true }), '');
+  assert.match(judgeQuote({ credits: 10, plan: "I'm going to generate an 8-second video of a crochet bouquet using Veo 3.1 - Fast.", model: 'Veo 3.1 - Fast', max: 20, first: true }), /first frame/);
+});
+
 test('"the transition between your two images" counts as first and last frame', () => {
   const plan = "I'm going to generate your 8-second video using Veo 3.1 - Quality, animating the transition between your two images with the specific acting and style you've described.";
   assert.equal(judgeQuote({ credits: 100, plan, model: 'Veo 3.1 - Quality', max: 150, first: true }), '');
