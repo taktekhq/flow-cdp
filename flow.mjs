@@ -204,8 +204,15 @@ const tiles = (tab, kind) => tab.ev(`[...document.querySelectorAll('flow-${kind}
   return {label:c?c.getAttribute('aria-label'):'', ready:!!(img&&img.complete&&img.naturalWidth>0)&&!/\\d+%/.test(t.innerText),
     x:Math.round(r.x+r.width/2), y:Math.round(r.y+r.height/2)}})`);
 
+// With FLOW_DOWNLOADS set, this tab saves its downloads there instead of Chrome's own folder. Needed when the
+// script cannot read ~/Downloads, e.g. over ssh on macOS ("EPERM: operation not permitted, scandir", 28 Oct 2026).
+async function saveHere(tab) {
+  if (process.env.FLOW_DOWNLOADS) await tab.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOADS });
+}
+
 async function download(tab, tile, out, resolution, ext) {
   const start = Date.now();
+  await saveHere(tab);
   await tab.click(tile.x, tile.y);
   await sleep(5000);
   if (!(await tab.clickText('download', { tag: 'button' }))) die('no download button in the editor');
@@ -325,6 +332,7 @@ async function omni(o) {
     }
     await sleep(3000);
     const start = Date.now();
+    await saveHere(tab);
     if (!(await tab.clickText('download', { tag: 'button' }))) die('no download button');
     let picked = '';
     for (let i = 0; i < 4 && !picked; i++) { await sleep(1500 + i * 2000); if (await tab.clickText(o.resolution || '1080p')) picked = o.resolution || '1080p'; }
@@ -351,5 +359,5 @@ try {
   else die('usage: node flow.mjs video --prompt "..." --out clip.mp4 [--first img] [--last img] (see README.md)', 2);
 } catch (e) {
   console.error(`flow: ${e.message}`);
-  process.exit(e.code || 1);
+  process.exit(Number.isInteger(e.code) ? e.code : 1); // Node's own errors carry string codes such as 'EPERM'
 }

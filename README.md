@@ -40,7 +40,8 @@ It prints the project URL, the agent's plan and the quoted credits (to stdout), 
 | `--timeout` | `1500` | Seconds to wait for the clip. |
 
 Environment: `CDP_URL`, `FLOW_ACCOUNT`, `FLOW_PROJECT`, `FLOW_DOWNLOADS` (where Chrome saves files, default
-`~/Downloads`).
+`~/Downloads`; when set, the script's own tab is told to save there, which helps when the script cannot read
+`~/Downloads`, as over ssh on macOS).
 
 Exit codes: `0` saved, `1` the page did not look as expected, `2` usage, `3` quote rejected, `4` Flow failed or
 refused the generation (worth one retry), `5` timed out (the clip may still finish in the project).
